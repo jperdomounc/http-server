@@ -33,7 +33,7 @@ void ThreadPool::shutdown() {
     {
         std::unique_lock<std::mutex> lock(queue_mutex_);
         if (stop_) {
-            return;  // Already stopped
+            return;
         }
         stop_ = true;
     }

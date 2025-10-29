@@ -15,7 +15,6 @@ void signal_handler(int signal) {
 }
 
 int main(int argc, char* argv[]) {
-    // Parse command line arguments
     int port = 8080;
     size_t num_threads = std::thread::hardware_concurrency();
 
@@ -35,12 +34,10 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    // Setup signal handlers for graceful shutdown
     std::signal(SIGINT, signal_handler);
     std::signal(SIGTERM, signal_handler);
 
     try {
-        // Create and start server
         server = std::make_unique<HttpServer>(port, num_threads);
 
         std::cout << "Starting HTTP server..." << std::endl;

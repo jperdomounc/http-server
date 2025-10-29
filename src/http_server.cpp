@@ -12,7 +12,6 @@ HttpServer::HttpServer(int port, size_t num_threads)
     : port_(port), server_socket_(-1), running_(false) {
     thread_pool_ = std::make_unique<ThreadPool>(num_threads);
 
-    // Ignore SIGPIPE to prevent server crash when client disconnects
     signal(SIGPIPE, SIG_IGN);
 }
 
@@ -26,20 +25,17 @@ void HttpServer::start() {
         return;
     }
 
-    // Create socket
     server_socket_ = socket(AF_INET, SOCK_STREAM, 0);
     if (server_socket_ < 0) {
         throw std::runtime_error("Failed to create socket");
     }
 
-    // Set socket options to reuse address
     int opt = 1;
     if (setsockopt(server_socket_, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0) {
         close(server_socket_);
         throw std::runtime_error("Failed to set socket options");
     }
 
-    // Bind socket to port
     struct sockaddr_in server_addr;
     std::memset(&server_addr, 0, sizeof(server_addr));
     server_addr.sin_family = AF_INET;
@@ -51,7 +47,6 @@ void HttpServer::start() {
         throw std::runtime_error("Failed to bind socket to port " + std::to_string(port_));
     }
 
-    // Listen for connections
     if (listen(server_socket_, 128) < 0) {
         close(server_socket_);
         throw std::runtime_error("Failed to listen on socket");
@@ -61,7 +56,6 @@ void HttpServer::start() {
     std::cout << "HTTP Server started on port " << port_ << " with "
               << thread_pool_->size() << " worker threads" << std::endl;
 
-    // Accept connections
     while (running_) {
         struct sockaddr_in client_addr;
         socklen_t client_len = sizeof(client_addr);
@@ -75,7 +69,6 @@ void HttpServer::start() {
             continue;
         }
 
-        // Submit client handling to thread pool
         try {
             thread_pool_->enqueue([this, client_socket]() {
                 this->handle_client(client_socket);
@@ -111,24 +104,20 @@ void HttpServer::handle_client(int client_socket) {
     char buffer[BUFFER_SIZE];
     std::string request_data;
 
-    // Read request
     ssize_t bytes_received = recv(client_socket, buffer, BUFFER_SIZE - 1, 0);
 
     if (bytes_received > 0) {
         buffer[bytes_received] = '\0';
         request_data = buffer;
 
-        // Parse and process request
         try {
             HttpRequest request = parse_request(request_data);
             std::string response = generate_response(request);
 
-            // Send response
             send(client_socket, response.c_str(), response.length(), 0);
         } catch (const std::exception& e) {
             std::cerr << "Error processing request: " << e.what() << std::endl;
 
-            // Send error response
             std::string error_response =
                 "HTTP/1.1 400 Bad Request\r\n"
                 "Content-Type: text/plain\r\n"
@@ -147,9 +136,7 @@ HttpServer::HttpRequest HttpServer::parse_request(const std::string& request_dat
     std::istringstream stream(request_data);
     std::string line;
 
-    // Parse request line
     if (std::getline(stream, line)) {
-        // Remove \r if present
         if (!line.empty() && line.back() == '\r') {
             line.pop_back();
         }
@@ -158,7 +145,6 @@ HttpServer::HttpRequest HttpServer::parse_request(const std::string& request_dat
         line_stream >> request.method >> request.path >> request.version;
     }
 
-    // Parse headers
     while (std::getline(stream, line) && line != "\r") {
         if (!line.empty() && line.back() == '\r') {
             line.pop_back();
@@ -173,7 +159,6 @@ HttpServer::HttpRequest HttpServer::parse_request(const std::string& request_dat
             std::string key = line.substr(0, colon_pos);
             std::string value = line.substr(colon_pos + 1);
 
-            // Trim leading whitespace from value
             size_t start = value.find_first_not_of(" \t");
             if (start != std::string::npos) {
                 value = value.substr(start);
@@ -183,7 +168,6 @@ HttpServer::HttpRequest HttpServer::parse_request(const std::string& request_dat
         }
     }
 
-    // Read body (if any)
     std::string body_content;
     while (std::getline(stream, line)) {
         body_content += line;
@@ -196,10 +180,8 @@ HttpServer::HttpRequest HttpServer::parse_request(const std::string& request_dat
 std::string HttpServer::generate_response(const HttpRequest& request) {
     std::ostringstream response;
 
-    // Log the request
     std::cout << request.method << " " << request.path << " " << request.version << std::endl;
 
-    // Simple routing
     if (request.method == "GET") {
         if (request.path == "/" || request.path == "/index.html") {
             std::string body =
