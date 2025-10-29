@@ -1,0 +1,28 @@
+# Build directories
+build/
+cmake-build-*/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Git
+.git/
+.gitignore
+
+# Documentation
+README.md
+LICENSE
+*.md
+
+# Docker files
+Dockerfile
+.dockerignore
+docker-compose.yml
+
+# OS files
+.DS_Store
+Thumbs.db
